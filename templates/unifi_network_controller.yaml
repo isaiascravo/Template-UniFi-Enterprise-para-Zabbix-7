@@ -1,0 +1,121 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 9ac52ae5c61a4a2a8cced9d812ac7a10
+      name: Templates/Network devices
+  templates:
+    - uuid: 34cdf6c728184a7ea19344f18df8c9c1
+      template: 'UniFi Network Controller by Official API'
+      name: 'UniFi Network Controller by Official API'
+      description: |
+        Alpha template for the official UniFi Network integration/v1 API.
+        Coverage is validated against UniFi Network 10.4.57 (including
+        GET {$UNIFI.API.URL}/info, which reports that exact version) and
+        compared with the versioned official documentation. See
+        docs/API-NOTES.md.
+      groups:
+        - name: Templates/Network devices
+      items:
+        - uuid: a4c295c9402942fcaa6a4893ca428681
+          name: 'UniFi API: info (raw)'
+          type: HTTP_AGENT
+          key: unifi.api.info.raw
+          delay: 1h
+          history: '1h'
+          value_type: TEXT
+          url: '{$UNIFI.API.URL}/info'
+          headers:
+            - name: X-API-Key
+              value: '{$UNIFI.API.KEY}'
+            - name: Accept
+              value: application/json
+          request_method: GET
+          retrieve_mode: BODY
+          status_codes: '200'
+          timeout: '{$UNIFI.API.TIMEOUT}'
+          verify_peer: 'NO'
+          verify_host: 'NO'
+          description: >-
+            Master item. GET {$UNIFI.API.URL}/info returns
+            {"applicationVersion": "..."}; confirmed against a live
+            controller (see docs/API-NOTES.md). Polled hourly since the
+            application version rarely changes.
+          tags:
+            - tag: component
+              value: raw
+        - uuid: e2cdfcd27ac34be483e3890b361fc369
+          name: 'UniFi: application version'
+          type: DEPENDENT
+          key: unifi.api.info.application_version
+          delay: '0'
+          history: '90d'
+          value_type: TEXT
+          master_item:
+            key: unifi.api.info.raw
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.applicationVersion
+          description: 'UniFi Network application version, derived from the master payload.'
+          tags:
+            - tag: component
+              value: metric
+        - uuid: 4b2d8bd417f94634bac9840f6266d8a2
+          name: 'UniFi API: sites (raw)'
+          type: HTTP_AGENT
+          key: unifi.api.sites.raw
+          delay: 5m
+          history: '1h'
+          value_type: TEXT
+          url: '{$UNIFI.API.URL}/sites?offset=0&limit=200'
+          headers:
+            - name: X-API-Key
+              value: '{$UNIFI.API.KEY}'
+            - name: Accept
+              value: application/json
+          request_method: GET
+          retrieve_mode: BODY
+          status_codes: '200'
+          timeout: '{$UNIFI.API.TIMEOUT}'
+          verify_peer: 'NO'
+          verify_host: 'NO'
+          description: >-
+            Master item. TLS verification is disabled for the self-signed
+            reference environment; enable both checks when the controller
+            certificate is trusted by the Zabbix server/proxy.
+          tags:
+            - tag: component
+              value: raw
+        - uuid: 730997729d3148e2a03b1df7776f12ea
+          name: 'UniFi: site count'
+          type: DEPENDENT
+          key: unifi.api.sites.count
+          delay: '0'
+          history: '90d'
+          trends: '365d'
+          value_type: UNSIGNED
+          master_item:
+            key: unifi.api.sites.raw
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.totalCount
+          description: 'Total site count derived from the master payload.'
+          tags:
+            - tag: component
+              value: metric
+      macros:
+        - macro: '{$UNIFI.API.KEY}'
+          type: SECRET_TEXT
+          description: 'Read-only UniFi API key. Configure on the host.'
+        - macro: '{$UNIFI.API.TIMEOUT}'
+          value: '10s'
+          description: 'Zabbix time interval used as HTTP timeout.'
+        - macro: '{$UNIFI.API.URL}'
+          value: 'https://unifi.example:11443/proxy/network/integration/v1'
+          description: 'Base URL of the official local integration/v1 API.'
+      tags:
+        - tag: class
+          value: network
+        - tag: target
+          value: unifi
