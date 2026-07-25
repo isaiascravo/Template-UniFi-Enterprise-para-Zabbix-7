@@ -1,49 +1,50 @@
 # Roadmap
 
-> Ver `docs/API-NOTES.md` antes de implementar qualquer item abaixo: vários
-> campos listados nas fases v0.3/v0.4 (PoE, erros de porta, mudanças de
-> config) não foram confirmados na API `integration/v1` até agora e podem
-> não existir - valide com uma chamada real antes de assumir que o campo
-> existe.
+> Toda métrica nova deve indicar a versão da documentação consultada e, quando possível, possuir fixture sanitizada e teste automatizado.
 
 ## v0.1 — Controller
 
-- ~~API health, versão e tempo de resposta~~ - substituído: nenhum endpoint
-  de health/info foi confirmado; a validação inicial ficou em `GET /sites`
-  (confirmado, ver `docs/API-NOTES.md`).
-- Coleta de `/sites` com item mestre + item dependente (contagem de sites).
-- Macros seguras (`{$UNIFI.API.KEY}` como `Secret text`) e TLS documentado
-  (verify_peer/verify_host são fixos no Zabbix, não aceitam macro).
+- Coleta de `/sites` com item mestre e item dependente.
+- Macro `{$UNIFI.API.KEY}` como `Secret text`.
+- Timeout explícito e TLS documentado.
+- Smoke test da API local.
 
-## v0.2 — Sites e dispositivos
+## v0.2 — Contratos e testes
 
-- LLD de sites (`GET /sites`, confirmado).
-- Descoberta de dispositivos por site (`GET /sites/{siteId}/devices`, confirmado).
-- Inventário de modelo, firmware, MAC, IP - confirmados. **Serial não está
-  presente** nos objetos de dispositivo testados; remover essa expectativa
-  ou validar em outro firmware antes de prometer o campo.
-- Uplink: só existe como taxa agregada em `statistics/latest.uplink.{txRateBps,rxRateBps}`,
-  não há flag indicando qual porta é a de uplink.
+- Matriz de compatibilidade por versão.
+- Notas de OpenAPI/Postman oficial.
+- Fixtures sanitizadas de sites, dispositivos, clientes e estatísticas.
+- Testes de schema e JSONPath.
+- GitHub Actions para YAML, JSON e testes Python.
 
-## v0.3 — Switching e Wi-Fi
+## v0.3 — Sites e dispositivos
 
-- LLD de portas: confirmado (`interfaces.ports[]` em `GET /sites/{s}/devices/{d}`).
-- **PoE e erros de porta: não confirmados** - a API testada não retornou
-  esses campos; tratar como pesquisa em aberto, não como entregável certo.
-- LLD de rádios 2,4/5 GHz: confirmado (`interfaces.radios[]`); 6 GHz
-  depende de hardware Wi-Fi 6E/7 que não foi testado.
-- Métricas agregadas de clientes: confirmado (`GET /sites/{s}/clients`,
-  agregável por `type` e `uplinkDeviceId`). **SSID não está no objeto de
-  cliente** - agregação por SSID não é possível com os campos atuais.
+- LLD de sites.
+- Descoberta de dispositivos por site.
+- Inventário de modelo, firmware, MAC, IP, estado e recursos.
+- Value maps para estados detalhados.
+- Topologia por `uplink.deviceId` quando disponível.
 
-## v0.4 — Auditoria e dashboards
+## v0.4 — Switching e Wi-Fi
 
-- Mudanças em redes, VLANs, Wi-Fi, firewall, ACL e DNS: **nenhum endpoint
-  de auditoria/eventos foi testado ainda** - antes de prometer isso,
-  validar se `integration/v1` expõe algo equivalente ou se exigiria a API
-  privada/legada (fora do escopo "API oficial" deste projeto).
-- Dashboards NOC, Wi-Fi, switching, WAN e MSP: WAN depende de um gateway
-  UniFi real para validar - não testado até agora.
+- LLD de portas em `interfaces.ports[]`.
+- PoE: habilitação, padrão, estado e tipo quando `interfaces.ports[].poe` estiver presente.
+- Não prometer watts, tensão, corrente ou orçamento PoE sem campo documentado/validado.
+- LLD de rádios em `interfaces.radios[]`.
+- Métricas disponíveis em `statistics/latest`, incluindo `txRetriesPct` quando presente.
+- Descoberta de LAG nas versões que expõem esse recurso.
+
+## v0.5 — Clientes e dashboards
+
+- Agregação de clientes wired, wireless e tipos de acesso documentados.
+- Dashboard NOC, switching, Wi-Fi e MSP.
+- Supressão de sintomas: não gerar cascata de alertas de portas/rádios quando o dispositivo pai estiver indisponível.
+
+## v0.6 — Ações opcionais
+
+- Módulo separado para `POWER_CYCLE` de porta.
+- Credencial de escrita separada da chave somente leitura.
+- Nenhuma ação destrutiva ou de remediação automática no template principal.
 
 ## v1.0
 
