@@ -1,0 +1,907 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 5877ca7687984187859735c7a1123220
+    name: Templates/Network devices
+  templates:
+  - uuid: f5f468785e0944c6a6aba4656435d217
+    template: Template UniFi Network by Official API
+    name: Template UniFi Network by Official API
+    description: 'Site/network-level discovery: one host using this template represents one UniFi site.
+      Discovers adopted devices and creates one host per device (linked to ''Template UniFi Device by
+      Official API''), plus site-wide aggregated client counters. Set {$UNIFI.SITE.ID} and {$UNIFI.SITE.NAME}
+      on the host before use.'
+    groups:
+    - name: Templates/Network devices
+    items:
+    - uuid: 213f66b4306c4bc4ace1efa2503d4eda
+      name: 'UniFi: raw sites list'
+      type: HTTP_AGENT
+      key: unifi.sites.raw
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: TEXT
+      url: '{$UNIFI.API.URL}/sites?limit=200'
+      headers:
+      - name: X-API-Key
+        value: '{$UNIFI.API.KEY}'
+      - name: Accept
+        value: application/json
+      status_codes: '200'
+      follow_redirects: 'YES'
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      timeout: '{$UNIFI.API.TIMEOUT}'
+      description: 'Master item: fetched once, every other metric below is derived from this raw JSON
+        via dependent items/LLD, so this is the only HTTP call for this payload.'
+      tags:
+      - tag: component
+        value: unifi-api
+    - uuid: dfa119af521f4b8992fc2b3995702957
+      name: 'UniFi: raw devices list (site)'
+      type: HTTP_AGENT
+      key: unifi.devices.raw
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: TEXT
+      url: '{$UNIFI.API.URL}/sites/{$UNIFI.SITE.ID}/devices?limit=200'
+      headers:
+      - name: X-API-Key
+        value: '{$UNIFI.API.KEY}'
+      - name: Accept
+        value: application/json
+      status_codes: '200'
+      follow_redirects: 'YES'
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      timeout: '{$UNIFI.API.TIMEOUT}'
+      description: 'Master item: fetched once, every other metric below is derived from this raw JSON
+        via dependent items/LLD, so this is the only HTTP call for this payload.'
+      tags:
+      - tag: component
+        value: unifi-api
+    - uuid: 6a54c1e143544d8bb3270210a2d06c5b
+      name: 'UniFi: raw clients list (site)'
+      type: HTTP_AGENT
+      key: unifi.clients.raw
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: TEXT
+      url: '{$UNIFI.API.URL}/sites/{$UNIFI.SITE.ID}/clients?limit=200'
+      headers:
+      - name: X-API-Key
+        value: '{$UNIFI.API.KEY}'
+      - name: Accept
+        value: application/json
+      status_codes: '200'
+      follow_redirects: 'YES'
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      timeout: '{$UNIFI.API.TIMEOUT}'
+      description: 'Master item: fetched once, every other metric below is derived from this raw JSON
+        via dependent items/LLD, so this is the only HTTP call for this payload.'
+      tags:
+      - tag: component
+        value: unifi-api
+    - uuid: 1e1a6c624fe940c086c7d56f859777f4
+      name: 'UniFi: site count'
+      type: DEPENDENT
+      key: unifi.sites.count
+      delay: '0'
+      history: 90d
+      value_type: UNSIGNED
+      master_item:
+        key: unifi.sites.raw
+      trends: 365d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.totalCount
+    - uuid: 6bf88954491b445284215add5133a445
+      name: 'UniFi: device count (site)'
+      type: DEPENDENT
+      key: unifi.devices.count
+      delay: '0'
+      history: 90d
+      value_type: UNSIGNED
+      master_item:
+        key: unifi.devices.raw
+      trends: 365d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.totalCount
+    - uuid: e8485893eda44e33bf6cfcd5edb28a9a
+      name: 'UniFi: total clients (site)'
+      type: DEPENDENT
+      key: unifi.clients.total
+      delay: '0'
+      history: 90d
+      value_type: UNSIGNED
+      master_item:
+        key: unifi.clients.raw
+      trends: 365d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.totalCount
+    - uuid: 11c34abb5c1a40ad93833983be2e0efb
+      name: 'UniFi: wired clients (site)'
+      type: DEPENDENT
+      key: unifi.clients.wired
+      delay: '0'
+      history: 90d
+      value_type: UNSIGNED
+      master_item:
+        key: unifi.clients.raw
+      trends: 365d
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);return (d.data||[]).filter(function(c){return c.type==='WIRED';}).length;
+    - uuid: 346ebd5f63a84a8699f31e3cc2958089
+      name: 'UniFi: wireless clients (site)'
+      type: DEPENDENT
+      key: unifi.clients.wireless
+      delay: '0'
+      history: 90d
+      value_type: UNSIGNED
+      master_item:
+        key: unifi.clients.raw
+      trends: 365d
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);return (d.data||[]).filter(function(c){return c.type==='WIRELESS';}).length;
+    discovery_rules:
+    - uuid: 294843a06df540c49252d8cd29aaeff7
+      name: UniFi device discovery (site)
+      type: DEPENDENT
+      key: unifi.devices.discovery
+      delay: '0'
+      master_item:
+        key: unifi.devices.raw
+      description: Reuses the unifi.devices.raw master item collected above; does not issue its own HTTP
+        call.
+      lld_macro_paths: []
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);var out=[];var devices=d.data||[];for (var i=0;i<devices.length;i++){var
+          x=devices[i];out.push({"{#DEVICE_ID}":x.id||"","{#DEVICE_NAME}":x.name||"","{#DEVICE_MAC}":x.macAddress||"","{#DEVICE_IP}":x.ipAddress||"","{#DEVICE_MODEL}":x.model||"","{#DEVICE_TYPE}":(x.features||[]).join(",")||"unknown","{#DEVICE_VERSION}":x.firmwareVersion||"","{#SITE_ID}":"{$UNIFI.SITE.ID}","{#SITE_NAME}":"{$UNIFI.SITE.NAME}"});}return
+          JSON.stringify(out);
+      host_prototypes:
+      - uuid: ff73a0a466b4451e98a81648a8964ef2
+        host: unifi-{#DEVICE_ID}
+        name: '{#DEVICE_NAME} - {#DEVICE_MODEL}'
+        group_links:
+        - group:
+            name: '{$UNIFI.HOST.GROUP}'
+        group_prototypes:
+        - name: UniFi/{#SITE_NAME}
+        - name: UniFi/{#SITE_NAME}/{#DEVICE_TYPE}
+        templates:
+        - name: Template UniFi Device by Official API
+        macros:
+        - macro: '{$UNIFI.SITE.ID}'
+          value: '{#SITE_ID}'
+        - macro: '{$UNIFI.DEVICE.ID}'
+          value: '{#DEVICE_ID}'
+        tags:
+        - tag: vendor
+          value: ubiquiti
+        - tag: platform
+          value: unifi
+        - tag: site
+          value: '{#SITE_NAME}'
+        - tag: device_type
+          value: '{#DEVICE_TYPE}'
+        - tag: model
+          value: '{#DEVICE_MODEL}'
+        status: ENABLED
+    macros:
+    - macro: '{$UNIFI.API.URL}'
+      value: https://unifi.example:11443/proxy/network/integration/v1
+      description: Base URL of the UniFi Network integration/v1 API.
+    - macro: '{$UNIFI.API.KEY}'
+      value: ''
+      type: SECRET_TEXT
+      description: X-API-Key issued in the UniFi OS Server admin UI. Read-only key recommended.
+    - macro: '{$UNIFI.API.TIMEOUT}'
+      value: '10'
+      description: HTTP timeout in seconds for every item in this template.
+    - macro: '{$UNIFI.API.VERIFY_TLS}'
+      value: 'false'
+      description: Used by the external Python collector only. Native Zabbix HTTP Agent items in this
+        template hardcode SSL verify peer/host to NO because the reference environment uses a self-signed
+        certificate; set to true and supply {$UNIFI.API.CA_FILE} if you run the external collector against
+        a trusted certificate instead.
+    - macro: '{$UNIFI.API.CA_FILE}'
+      value: ''
+      description: Path to a CA bundle, used by the external Python collector only.
+    - macro: '{$UNIFI.SITE.ID}'
+      value: ''
+      description: UUID of the UniFi site this host/template instance targets.
+    - macro: '{$UNIFI.SITE.NAME}'
+      value: ''
+      description: Human-readable site name, used to build discovered host groups.
+    - macro: '{$UNIFI.HOST.GROUP}'
+      value: UniFi
+      description: Host group every discovered device host is added to. Defaults to
+        "UniFi" (created automatically). Set this to an existing group instead (e.g.
+        a client/tenant group in a multi-tenant Zabbix) if you do not want a separate
+        "UniFi" group created - the group must already exist when you do this.
+    - macro: '{$UNIFI.DEVICE.ID}'
+      value: ''
+      description: UUID of the device. Empty on the network-level host; set automatically by device discovery
+        on each host prototype.
+    - macro: '{$UNIFI.CPU.HIGH}'
+      value: '85'
+      description: CPU utilization percent threshold, sustained 10 minutes.
+    - macro: '{$UNIFI.MEMORY.HIGH}'
+      value: '85'
+      description: Memory utilization percent threshold, sustained 10 minutes.
+    - macro: '{$UNIFI.TEMP.HIGH}'
+      value: '70'
+      description: 'Reserved: no tested device exposed a temperature field in statistics/latest. Kept
+        for macro-list compliance; not wired to any item/trigger.'
+    - macro: '{$UNIFI.LASTSEEN.MAX}'
+      value: '300'
+      description: Max age in seconds of the last device heartbeat.
+    - macro: '{$UNIFI.CLIENTS.MAX}'
+      value: '200'
+      description: Max clients per device before the anomalous-count trigger fires.
+    - macro: '{$UNIFI.PORT.ERRORS.MAX}'
+      value: '100'
+      description: 'Reserved: integration/v1 does not expose per-port error/discard counters on the tested
+        firmware. Kept for macro-list compliance; not wired to any item/trigger.'
+    - macro: '{$UNIFI.RADIO.RETRIES.MAX}'
+      value: '20'
+      description: 'Addition beyond the requested macro list: tx retry percent threshold for the radio
+        retransmission trigger, the one radio-quality field the API actually exposes.'
+    valuemaps:
+    - uuid: cf69de3b92874525b10196db46d73991
+      name: UniFi device state
+      mappings:
+      - value: ONLINE
+        newvalue: Online
+      - value: OFFLINE
+        newvalue: Offline
+    - uuid: 4f21056136664c53a5f775782c83a562
+      name: UniFi port state
+      mappings:
+      - value: UP
+        newvalue: Up
+      - value: DOWN
+        newvalue: Down
+    - uuid: f159e94c138745ed8aa99f43041712a8
+      name: UniFi boolean adoption
+      mappings:
+      - value: '1'
+        newvalue: Adotado/Suportado
+      - value: '0'
+        newvalue: Nao adotado/Nao suportado
+    - uuid: 7e78eff5cdf049f88f9f5bb1bed1a9cd
+      name: UniFi radio band
+      mappings:
+      - value: '2.4'
+        newvalue: 2.4 GHz
+      - value: '5'
+        newvalue: 5 GHz
+      - value: '6'
+        newvalue: 6 GHz
+  - uuid: 676d08c0f85147b89c76a8e118b31ae5
+    template: Template UniFi Device by Official API
+    name: Template UniFi Device by Official API
+    description: Linked automatically by the device host prototype in 'Template UniFi Network by Official
+      API'. Repeats {$UNIFI.API.*} connection macros locally so discovered device hosts do not depend
+      on the network-level host; keep both in sync, or promote {$UNIFI.API.URL} / {$UNIFI.API.KEY} to
+      Zabbix global macros to avoid the duplication.
+    groups:
+    - name: Templates/Network devices
+    items:
+    - uuid: 05faf80854534a4bb54899bda7425182
+      name: 'UniFi: raw device detail'
+      type: HTTP_AGENT
+      key: unifi.device.raw
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: TEXT
+      url: '{$UNIFI.API.URL}/sites/{$UNIFI.SITE.ID}/devices/{$UNIFI.DEVICE.ID}'
+      headers:
+      - name: X-API-Key
+        value: '{$UNIFI.API.KEY}'
+      - name: Accept
+        value: application/json
+      status_codes: '200'
+      follow_redirects: 'YES'
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      timeout: '{$UNIFI.API.TIMEOUT}'
+      description: 'Master item: fetched once, every other metric below is derived from this raw JSON
+        via dependent items/LLD, so this is the only HTTP call for this payload.'
+      tags:
+      - tag: component
+        value: unifi-api
+    - uuid: a7f71a6c6c744920aaa0f311e390fcd9
+      name: 'UniFi: raw device statistics/latest'
+      type: HTTP_AGENT
+      key: unifi.device.stats.raw
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: TEXT
+      url: '{$UNIFI.API.URL}/sites/{$UNIFI.SITE.ID}/devices/{$UNIFI.DEVICE.ID}/statistics/latest'
+      headers:
+      - name: X-API-Key
+        value: '{$UNIFI.API.KEY}'
+      - name: Accept
+        value: application/json
+      status_codes: '200'
+      follow_redirects: 'YES'
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      timeout: '{$UNIFI.API.TIMEOUT}'
+      description: 'Master item: fetched once, every other metric below is derived from this raw JSON
+        via dependent items/LLD, so this is the only HTTP call for this payload.'
+      tags:
+      - tag: component
+        value: unifi-api
+    - uuid: 5db6168a325c4820bbe287f8da6e3a79
+      name: 'UniFi: raw clients list (for this device''s uplink count)'
+      type: HTTP_AGENT
+      key: unifi.device.clients.raw
+      delay: 1m
+      history: 7d
+      trends: '0'
+      value_type: TEXT
+      url: '{$UNIFI.API.URL}/sites/{$UNIFI.SITE.ID}/clients?limit=200'
+      headers:
+      - name: X-API-Key
+        value: '{$UNIFI.API.KEY}'
+      - name: Accept
+        value: application/json
+      status_codes: '200'
+      follow_redirects: 'YES'
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      timeout: '{$UNIFI.API.TIMEOUT}'
+      description: Each device host polls the site's client list independently so its own client-count
+        trigger stays self-contained. For sites with many devices, prefer reading unifi.clients.* from
+        the network-level host instead of enabling this item on every device, to cut down on redundant
+        calls.
+      tags:
+      - tag: component
+        value: unifi-api
+    - uuid: 0a7aff19414942cf9748e3e2425e0e82
+      name: 'UniFi device: name'
+      type: DEPENDENT
+      key: unifi.device.name
+      delay: '0'
+      history: 90d
+      value_type: TEXT
+      master_item:
+        key: unifi.device.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.name
+    - uuid: efe5e22c007c42138c78983e9ba89407
+      name: 'UniFi device: model'
+      type: DEPENDENT
+      key: unifi.device.model
+      delay: '0'
+      history: 90d
+      value_type: TEXT
+      master_item:
+        key: unifi.device.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.model
+    - uuid: df46315063d04ff785ddff2f497d4066
+      name: 'UniFi device: MAC address'
+      type: DEPENDENT
+      key: unifi.device.mac
+      delay: '0'
+      history: 90d
+      value_type: TEXT
+      master_item:
+        key: unifi.device.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.macAddress
+    - uuid: 5eba775496264e2b908af3df2456f8df
+      name: 'UniFi device: management IP'
+      type: DEPENDENT
+      key: unifi.device.ip
+      delay: '0'
+      history: 90d
+      value_type: TEXT
+      master_item:
+        key: unifi.device.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.ipAddress
+    - uuid: 4cc4ecbc6c3f4760903a3cd33a2199e8
+      name: 'UniFi device: state'
+      type: DEPENDENT
+      key: unifi.device.state
+      delay: '0'
+      history: 90d
+      value_type: TEXT
+      master_item:
+        key: unifi.device.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.state
+    - uuid: b8b3c8e8214b494899c1766fa4205566
+      name: 'UniFi device: supported/adopted'
+      type: DEPENDENT
+      key: unifi.device.supported
+      delay: '0'
+      history: 90d
+      value_type: UNSIGNED
+      master_item:
+        key: unifi.device.raw
+      trends: 365d
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);return d.supported?1:0;
+    - uuid: 36081bdc29734ee1b1c711ec1c0575d3
+      name: 'UniFi device: firmware version'
+      type: DEPENDENT
+      key: unifi.device.firmware
+      delay: '0'
+      history: 90d
+      value_type: TEXT
+      master_item:
+        key: unifi.device.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.firmwareVersion
+    - uuid: 199ae0195be44d7c9135cbb039a8346e
+      name: 'UniFi device: firmware updatable'
+      type: DEPENDENT
+      key: unifi.device.firmware_updatable
+      delay: '0'
+      history: 90d
+      value_type: UNSIGNED
+      master_item:
+        key: unifi.device.raw
+      trends: 365d
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);return d.firmwareUpdatable?1:0;
+    - uuid: 107111fa00b6453fa24c66309d013e9d
+      name: 'UniFi device: uptime'
+      type: DEPENDENT
+      key: unifi.device.uptime
+      delay: '0'
+      history: 90d
+      value_type: UNSIGNED
+      master_item:
+        key: unifi.device.stats.raw
+      trends: 365d
+      units: uptime
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.uptimeSec
+    - uuid: 51a1a528b7564726bb53e3757c82ba15
+      name: 'UniFi device: last heartbeat age'
+      type: DEPENDENT
+      key: unifi.device.last_heartbeat_age
+      delay: '0'
+      history: 90d
+      value_type: UNSIGNED
+      master_item:
+        key: unifi.device.stats.raw
+      trends: 365d
+      units: s
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);var t=Date.parse(d.lastHeartbeatAt);return isNaN(t)?-1:Math.floor((Date.now()-t)/1000);
+    - uuid: 062d1627259148d18933eaedede60174
+      name: 'UniFi device: CPU utilization'
+      type: DEPENDENT
+      key: unifi.device.cpu
+      delay: '0'
+      history: 90d
+      value_type: FLOAT
+      master_item:
+        key: unifi.device.stats.raw
+      trends: 365d
+      units: '%'
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.cpuUtilizationPct
+    - uuid: 3a9c7b7c84074298af62b712e468db20
+      name: 'UniFi device: memory utilization'
+      type: DEPENDENT
+      key: unifi.device.memory
+      delay: '0'
+      history: 90d
+      value_type: FLOAT
+      master_item:
+        key: unifi.device.stats.raw
+      trends: 365d
+      units: '%'
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.memoryUtilizationPct
+    - uuid: be5cbbace85b4780920977d3e9e8a1f6
+      name: 'UniFi device: uplink TX rate'
+      type: DEPENDENT
+      key: unifi.device.uplink.tx
+      delay: '0'
+      history: 90d
+      value_type: FLOAT
+      master_item:
+        key: unifi.device.stats.raw
+      trends: 365d
+      units: Bps
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);return (d.uplink&&d.uplink.txRateBps)||0;
+    - uuid: 364b4127bec34fc5a6cdba9faf99f343
+      name: 'UniFi device: uplink RX rate'
+      type: DEPENDENT
+      key: unifi.device.uplink.rx
+      delay: '0'
+      history: 90d
+      value_type: FLOAT
+      master_item:
+        key: unifi.device.stats.raw
+      trends: 365d
+      units: Bps
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);return (d.uplink&&d.uplink.rxRateBps)||0;
+    - uuid: 5c18543eb13b4c67ad097b44d8c53cf3
+      name: 'UniFi device: clients on this device'
+      type: DEPENDENT
+      key: unifi.device.clients.count
+      delay: '0'
+      history: 90d
+      value_type: UNSIGNED
+      master_item:
+        key: unifi.device.clients.raw
+      trends: 365d
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);var id="{$UNIFI.DEVICE.ID}";return (d.data||[]).filter(function(c){return
+          c.uplinkDeviceId===id;}).length;
+    discovery_rules:
+    - uuid: b2dd9cdc96a24c3ba141b17e55538e9c
+      name: UniFi port discovery
+      type: DEPENDENT
+      key: unifi.ports.discovery
+      delay: '0'
+      master_item:
+        key: unifi.device.raw
+      description: No PoE state/consumption, duplex, STP, per-port traffic/error counters or an uplink-port
+        flag are exposed by integration/v1 for the tested firmware; {#POE_CAPABLE} and {#IS_UPLINK} are
+        always "0" as a result. See docs/endpoint-inventory.md.
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);var ports=(d.interfaces&&d.interfaces.ports)||[];var out=[];for (var
+          i=0;i<ports.length;i++){var p=ports[i];out.push({"{#PORT_ID}":String(p.idx),"{#PORT_INDEX}":String(p.idx),"{#PORT_NAME}":"Port
+          "+p.idx,"{#PORT_TYPE}":p.connector||"","{#PORT_SPEED}":String(p.speedMbps||0),"{#PORT_MAX_SPEED}":String(p.maxSpeedMbps||0),"{#POE_CAPABLE}":"0","{#IS_UPLINK}":"0"});}return
+          JSON.stringify(out);
+      item_prototypes:
+      - uuid: ad5cc0c2169146efa7e472bc12115140
+        name: 'Port {#PORT_NAME}: link state'
+        type: DEPENDENT
+        key: unifi.port.state[{#PORT_INDEX}]
+        delay: '0'
+        history: 90d
+        value_type: TEXT
+        master_item:
+          key: unifi.device.raw
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - var d=JSON.parse(value);var ports=(d.interfaces&&d.interfaces.ports)||[];for (var i=0;i<ports.length;i++){if(String(ports[i].idx)==="{#PORT_INDEX}")return
+            ports[i].state||"DOWN";} return "DOWN";
+        valuemap:
+          name: UniFi port state
+      - uuid: 8a22e5cba2fe41bd9520b473508ca3a4
+        name: 'Port {#PORT_NAME}: negotiated speed'
+        type: DEPENDENT
+        key: unifi.port.speed[{#PORT_INDEX}]
+        delay: '0'
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        units: Mbps
+        master_item:
+          key: unifi.device.raw
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - var d=JSON.parse(value);var ports=(d.interfaces&&d.interfaces.ports)||[];for (var i=0;i<ports.length;i++){if(String(ports[i].idx)==="{#PORT_INDEX}")return
+            ports[i].speedMbps||0;} return 0;
+      trigger_prototypes:
+      - uuid: 2df0ed751a1b4b2aa32f6e1bfcf1b248
+        name: Port {#PORT_NAME} went down on {HOST.NAME}
+        expression: last(/Template UniFi Device by Official API/unifi.port.state[{#PORT_INDEX}])="DOWN"
+          and count(/Template UniFi Device by Official API/unifi.port.state[{#PORT_INDEX}],10m,"eq","UP")>0
+        priority: WARNING
+        description: Only fires for ports that were seen UP in the last 10 minutes, so the many always-unused
+          ports on a 24/26-port switch stay silent.
+      - uuid: 9b5273ed1b984f3b93992b9eff257a00
+        name: Port {#PORT_NAME} negotiated below its max speed on {HOST.NAME}
+        expression: last(/Template UniFi Device by Official API/unifi.port.state[{#PORT_INDEX}])="UP"
+          and last(/Template UniFi Device by Official API/unifi.port.speed[{#PORT_INDEX}])<{#PORT_MAX_SPEED}
+          and {#PORT_MAX_SPEED}>0
+        priority: AVERAGE
+      - uuid: e9024e82366e45e2b238f412f0117c23
+        name: Port {#PORT_NAME} flapping on {HOST.NAME}
+        expression: count(/Template UniFi Device by Official API/unifi.port.state[{#PORT_INDEX}],10m,"eq","DOWN")>0
+          and count(/Template UniFi Device by Official API/unifi.port.state[{#PORT_INDEX}],10m,"eq","UP")>0
+        priority: AVERAGE
+      graph_prototypes:
+      - uuid: 52551c98fadc4cf18e2bbd243e8100f3
+        name: Port {#PORT_NAME} negotiated speed
+        graph_items:
+        - color: 2774A4
+          item:
+            host: Template UniFi Device by Official API
+            key: unifi.port.speed[{#PORT_INDEX}]
+    - uuid: 6857aadac59d49478508b926c68f1166
+      name: UniFi radio discovery
+      type: DEPENDENT
+      key: unifi.radios.discovery
+      delay: '0'
+      master_item:
+        key: unifi.device.raw
+      description: Channel utilization, interference, tx power and per-SSID/per-band client counts are
+        not exposed by integration/v1; only channel/width/standard (device detail) and txRetriesPct (statistics/latest)
+        are implemented. Radios have no stable ID in the API, so {#RADIO_ID} is the array position, which
+        is stable in practice but not contractually guaranteed.
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var d=JSON.parse(value);var radios=(d.interfaces&&d.interfaces.radios)||[];var out=[];for (var
+          i=0;i<radios.length;i++){var r=radios[i];out.push({"{#RADIO_ID}":String(i),"{#RADIO_NAME}":"radio"+i,"{#RADIO_BAND}":String(r.frequencyGHz||""),"{#RADIO_CHANNEL}":String(r.channel||""),"{#RADIO_WIDTH}":String(r.channelWidthMHz||"")});}return
+          JSON.stringify(out);
+      item_prototypes:
+      - uuid: ee8079c6bd2c4560b4ac1f4343b2463f
+        name: 'Radio {#RADIO_NAME}: channel'
+        type: DEPENDENT
+        key: unifi.radio.channel[{#RADIO_ID}]
+        delay: '0'
+        history: 90d
+        value_type: UNSIGNED
+        master_item:
+          key: unifi.device.raw
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - var d=JSON.parse(value);var radios=(d.interfaces&&d.interfaces.radios)||[];return (radios[{#RADIO_ID}]&&radios[{#RADIO_ID}].channel)||0;
+      - uuid: 82cdd10bc5e4443d841fca10011031ad
+        name: 'Radio {#RADIO_NAME}: tx retries'
+        type: DEPENDENT
+        key: unifi.radio.retries[{#RADIO_ID}]
+        delay: '0'
+        history: 90d
+        trends: 365d
+        value_type: FLOAT
+        units: '%'
+        master_item:
+          key: unifi.device.stats.raw
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - var d=JSON.parse(value);var radios=(d.interfaces&&d.interfaces.radios)||[];return (radios[{#RADIO_ID}]&&radios[{#RADIO_ID}].txRetriesPct)||0;
+      trigger_prototypes:
+      - uuid: 94abcf3b186c4995abf46813a799de8e
+        name: Radio {#RADIO_NAME} tx retries high on {HOST.NAME}
+        expression: min(/Template UniFi Device by Official API/unifi.radio.retries[{#RADIO_ID}],10m)>{$UNIFI.RADIO.RETRIES.MAX}
+        priority: WARNING
+      graph_prototypes:
+      - uuid: 8553be6efa33424693ff22281062c7a9
+        name: Radio {#RADIO_NAME} tx retries
+        graph_items:
+        - color: F63100
+          item:
+            host: Template UniFi Device by Official API
+            key: unifi.radio.retries[{#RADIO_ID}]
+    macros:
+    - macro: '{$UNIFI.API.URL}'
+      value: https://unifi.example:11443/proxy/network/integration/v1
+      description: Base URL of the UniFi Network integration/v1 API.
+    - macro: '{$UNIFI.API.KEY}'
+      value: ''
+      type: SECRET_TEXT
+      description: X-API-Key issued in the UniFi OS Server admin UI. Read-only key recommended.
+    - macro: '{$UNIFI.API.TIMEOUT}'
+      value: '10'
+      description: HTTP timeout in seconds for every item in this template.
+    - macro: '{$UNIFI.API.VERIFY_TLS}'
+      value: 'false'
+      description: Used by the external Python collector only. Native Zabbix HTTP Agent items in this
+        template hardcode SSL verify peer/host to NO because the reference environment uses a self-signed
+        certificate; set to true and supply {$UNIFI.API.CA_FILE} if you run the external collector against
+        a trusted certificate instead.
+    - macro: '{$UNIFI.API.CA_FILE}'
+      value: ''
+      description: Path to a CA bundle, used by the external Python collector only.
+    - macro: '{$UNIFI.SITE.ID}'
+      value: ''
+      description: UUID of the UniFi site this host/template instance targets.
+    - macro: '{$UNIFI.SITE.NAME}'
+      value: ''
+      description: Human-readable site name, used to build discovered host groups.
+    - macro: '{$UNIFI.DEVICE.ID}'
+      value: ''
+      description: UUID of the device. Empty on the network-level host; set automatically by device discovery
+        on each host prototype.
+    - macro: '{$UNIFI.CPU.HIGH}'
+      value: '85'
+      description: CPU utilization percent threshold, sustained 10 minutes.
+    - macro: '{$UNIFI.MEMORY.HIGH}'
+      value: '85'
+      description: Memory utilization percent threshold, sustained 10 minutes.
+    - macro: '{$UNIFI.TEMP.HIGH}'
+      value: '70'
+      description: 'Reserved: no tested device exposed a temperature field in statistics/latest. Kept
+        for macro-list compliance; not wired to any item/trigger.'
+    - macro: '{$UNIFI.LASTSEEN.MAX}'
+      value: '300'
+      description: Max age in seconds of the last device heartbeat.
+    - macro: '{$UNIFI.CLIENTS.MAX}'
+      value: '200'
+      description: Max clients per device before the anomalous-count trigger fires.
+    - macro: '{$UNIFI.PORT.ERRORS.MAX}'
+      value: '100'
+      description: 'Reserved: integration/v1 does not expose per-port error/discard counters on the tested
+        firmware. Kept for macro-list compliance; not wired to any item/trigger.'
+    - macro: '{$UNIFI.RADIO.RETRIES.MAX}'
+      value: '20'
+      description: 'Addition beyond the requested macro list: tx retry percent threshold for the radio
+        retransmission trigger, the one radio-quality field the API actually exposes.'
+    valuemaps:
+    - uuid: 9ad992e845f440d891ed8a49c5eefb10
+      name: UniFi device state
+      mappings:
+      - value: ONLINE
+        newvalue: Online
+      - value: OFFLINE
+        newvalue: Offline
+    - uuid: e370e0ec8a2648d2ae90fe56a6e9c439
+      name: UniFi port state
+      mappings:
+      - value: UP
+        newvalue: Up
+      - value: DOWN
+        newvalue: Down
+    - uuid: 9a960becf57a4474bbea0d2311ebc78d
+      name: UniFi boolean adoption
+      mappings:
+      - value: '1'
+        newvalue: Adotado/Suportado
+      - value: '0'
+        newvalue: Nao adotado/Nao suportado
+    - uuid: 6b71b69d62f94472af422b5526914110
+      name: UniFi radio band
+      mappings:
+      - value: '2.4'
+        newvalue: 2.4 GHz
+      - value: '5'
+        newvalue: 5 GHz
+      - value: '6'
+        newvalue: 6 GHz
+  triggers:
+  - uuid: 65a7c89cb9404ed4a3bd56062f2cdabc
+    name: 'UniFi API: no valid response for sites on {HOST.NAME}'
+    expression: nodata(/Template UniFi Network by Official API/unifi.sites.raw,15m)=1
+    priority: HIGH
+    description: Fires on network failure, TLS failure, HTTP error status (401/404/5xx via status_codes=200)
+      or invalid JSON on the sites master item. Zabbix does not natively distinguish those causes without
+      extra preprocessing steps; check the item's own error field in Latest Data for the specific status/message.
+  - uuid: 89bfd1828c1340f188c2d6661f3c946f
+    name: 'UniFi API: no valid response for devices on {HOST.NAME}'
+    expression: nodata(/Template UniFi Network by Official API/unifi.devices.raw,15m)=1
+    priority: HIGH
+    description: Covers API unavailable, auth refused, invalid response and site-not-found for the devices
+      endpoint of this site.
+  - uuid: cb9486cb7c0f4d8497acfd97e1d9f024
+    name: 'UniFi: abnormal client count on site {HOST.NAME}'
+    expression: last(/Template UniFi Network by Official API/unifi.clients.total)>{$UNIFI.CLIENTS.MAX}
+    priority: WARNING
+  - uuid: b1895cd9823e43edbd6c78e6e270fcfc
+    name: UniFi API unreachable/invalid for device {HOST.NAME}
+    expression: nodata(/Template UniFi Device by Official API/unifi.device.raw,15m)=1
+    priority: HIGH
+    description: Covers API unavailable, auth refused, invalid JSON and device-not-found. Check the item's
+      error field in Latest Data to tell them apart.
+  - uuid: a2eea85c28b44169b541ace13ef79b3c
+    name: Device {HOST.NAME} offline
+    expression: count(/Template UniFi Device by Official API/unifi.device.state,5m,"eq","ONLINE")=0
+    priority: HIGH
+  - uuid: 8d6c6b7e74f7439097c5327a9df9587a
+    name: Device {HOST.NAME} not adopted/supported
+    expression: last(/Template UniFi Device by Official API/unifi.device.supported)=0
+    priority: AVERAGE
+  - uuid: baffc523e23a41e19fbac35bb26b3176
+    name: Device {HOST.NAME} last contact too old
+    expression: last(/Template UniFi Device by Official API/unifi.device.last_heartbeat_age)>{$UNIFI.LASTSEEN.MAX}
+    priority: WARNING
+  - uuid: dc85cbcffa5b453cb686aa8e2a177d31
+    name: Device {HOST.NAME} reboot detected
+    expression: change(/Template UniFi Device by Official API/unifi.device.uptime)<0
+    priority: INFO
+  - uuid: a17e48c7053149b28457f8c80556a3a3
+    name: Device {HOST.NAME} CPU high
+    expression: min(/Template UniFi Device by Official API/unifi.device.cpu,10m)>{$UNIFI.CPU.HIGH}
+    priority: WARNING
+  - uuid: 14b1d7ee940543828f8f6d536e1e6337
+    name: Device {HOST.NAME} memory high
+    expression: min(/Template UniFi Device by Official API/unifi.device.memory,10m)>{$UNIFI.MEMORY.HIGH}
+    priority: WARNING
+  - uuid: 88d4afc5abb247ccb2d37a58a5cfb284
+    name: Device {HOST.NAME} firmware version changed
+    expression: last(/Template UniFi Device by Official API/unifi.device.firmware,#1)<>last(/Template UniFi
+      Device by Official API/unifi.device.firmware,#2)
+    priority: INFO
+  - uuid: 0334f0c3865e4717b0e120fe78025bf5
+    name: Device {HOST.NAME} abnormal client count
+    expression: last(/Template UniFi Device by Official API/unifi.device.clients.count)>{$UNIFI.CLIENTS.MAX}
+    priority: WARNING
+  graphs:
+  - uuid: 0e840b9bbd214e2c9243ca9ef12a6639
+    name: UniFi Clients (site)
+    graph_items:
+    - color: 1A7C11
+      item:
+        host: Template UniFi Network by Official API
+        key: unifi.clients.wired
+    - color: 2774A4
+      item:
+        host: Template UniFi Network by Official API
+        key: unifi.clients.wireless
+    - color: F63100
+      item:
+        host: Template UniFi Network by Official API
+        key: unifi.clients.total
+  - uuid: c3e3c57f3fb04de6aa0e3997e1f68619
+    name: Device CPU/Memory
+    graph_items:
+    - color: 1A7C11
+      item:
+        host: Template UniFi Device by Official API
+        key: unifi.device.cpu
+    - color: 2774A4
+      item:
+        host: Template UniFi Device by Official API
+        key: unifi.device.memory
+  - uuid: 973f03737717445698ff8c8025224a96
+    name: Device uplink RX/TX
+    graph_items:
+    - color: 1A7C11
+      item:
+        host: Template UniFi Device by Official API
+        key: unifi.device.uplink.rx
+    - color: F63100
+      item:
+        host: Template UniFi Device by Official API
+        key: unifi.device.uplink.tx

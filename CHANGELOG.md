@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added (import real validado)
+
+- `templates/unifi_network_and_devices.yaml`: dois templates com
+  descoberta de site → dispositivos → portas de switch → rádios de AP,
+  itens dependentes, value maps e triggers de porta/rádio. Importado via
+  API e validado de ponta a ponta num Zabbix 7.0.28 de produção real (3
+  access points e 1 switch descobertos automaticamente; triggers de porta
+  abaixo da velocidade máxima e de retransmissão de rádio dispararam sobre
+  dados reais).
+- Macro `{$UNIFI.HOST.GROUP}` (padrão `UniFi`): grupo estático em que cada
+  host descoberto entra, parametrizável para reusar um grupo já existente
+  em vez de criar um novo (essencial num Zabbix multi-tenant/MSP).
+- `docs/IMPORT-NOTES.md`: seis problemas reais encontrados só ao importar
+  de verdade (posição de `triggers`/`graphs` no schema, nome correto de
+  `verify_peer`/`verify_host`, `SECRET_TEXT` vs `SECRET`, ausência da
+  função `prev()`, exigência de `group_links` em host prototypes, e o
+  cuidado com `template.update` substituindo a lista inteira de macros).
+- `docs/ROADMAP.md`: v0.3 marcada como entregue e v0.4 como parcialmente
+  entregue (faltando PoE e LAG) nesse novo template.
+
 ### Added (this update)
 
 - `GET /info` de volta ao template (`unifi.api.info.raw` + item dependente

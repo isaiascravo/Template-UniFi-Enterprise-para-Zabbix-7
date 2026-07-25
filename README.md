@@ -14,15 +14,35 @@ Template comunitário para monitoramento de ambientes UniFi Network pelo Zabbix 
 - evolução para clientes, topologia, LAG, dashboards e auditoria quando suportada;
 - compatibilidade principal com Zabbix 7.0 LTS.
 
+## Templates disponíveis
+
+- **`templates/unifi_network_controller.yaml`** — alpha mínimo: só `/info` e
+  `/sites`, pensado para validar a conexão antes de ir mais longe.
+- **`templates/unifi_network_and_devices.yaml`** — dois templates
+  (`Template UniFi Network by Official API` + `Template UniFi Device by
+  Official API`) com descoberta automática de site → dispositivos → portas
+  de switch → rádios de AP, itens dependentes, value maps e triggers.
+  **Importado e validado de ponta a ponta num Zabbix 7.0.28 de produção
+  real** (3 access points + 1 switch descobertos automaticamente,
+  triggers de porta/rádio disparando sobre dados reais). Ver
+  `docs/IMPORT-NOTES.md` para os bugs reais encontrados nesse import e como
+  foram corrigidos.
+
 ## Instalação inicial
 
-1. Importe `templates/unifi_network_controller.yaml`.
-2. Crie um host para a controladora UniFi.
-3. Vincule o template `UniFi Network Controller by Official API`.
+1. Importe o template desejado (ver acima).
+2. Crie um host para a controladora UniFi (ou vincule ao host que já usa o
+   template alpha - os dois coexistem sem conflito).
+3. Vincule o template correspondente.
 4. Configure as macros no host:
    - `{$UNIFI.API.URL}`: exemplo `https://192.168.0.241:11443/proxy/network/integration/v1`;
    - `{$UNIFI.API.KEY}`: chave de leitura criada no UniFi OS;
    - `{$UNIFI.API.TIMEOUT}`: intervalo Zabbix de timeout, padrão `10s`.
+   - Só para `unifi_network_and_devices.yaml`: `{$UNIFI.SITE.ID}`,
+     `{$UNIFI.SITE.NAME}` (veja o site com `GET /sites`) e, opcionalmente,
+     `{$UNIFI.HOST.GROUP}` (grupo em que cada dispositivo descoberto entra;
+     padrão `UniFi` — troque para reusar um grupo seu já existente, por
+     exemplo o grupo do seu cliente num Zabbix multi-tenant).
 
 Não use `/unifi-api/network` como base: esse caminho é a interface de documentação autenticada e pode retornar HTML.
 
