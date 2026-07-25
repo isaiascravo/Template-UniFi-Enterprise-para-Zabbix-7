@@ -1,73 +1,67 @@
 # Notas de investigação da API UniFi Network `integration/v1`
 
-Resultado de uma validação real contra um UniFi OS Server ao vivo (build com
-firmware de switch `7.4.1`, controlador com sites/dispositivos/clientes
-reais). Nenhum item aqui é suposição - cada afirmação foi confirmada por uma
-chamada HTTP de verdade ou por consulta à documentação oficial do Zabbix.
-Nenhum dado privado (IP público, nome de site real, nome de dispositivo,
-cliente ou MAC de terceiros) é reproduzido neste documento público.
+Resultado de validação contra uma controladora UniFi Network 10.4.57 e comparação com a documentação oficial versionada. As conclusões devem ser lidas dentro desse escopo: campos podem variar entre versões e modelos.
 
-## Base da API e documentação local
+## Base da API e documentação
 
-- A base correta da API é `https://<host>:11443/proxy/network/integration/v1`.
-- `https://<host>:11443/unifi-api/network` **não é a API** - é a casca de
-  uma SPA autenticada do UniFi OS (`<title>UniFi OS</title>`, carrega
-  bundles `main~0/main~1/main~2` + chunks numerados). Apontar
-  `{$UNIFI.API.URL}` para esse caminho faz os itens HTTP Agent receberem
-  HTML em vez de JSON.
-- Não existe uma especificação OpenAPI/Swagger exposta localmente:
-  `GET /proxy/network/integration/v1/openapi.json`,
-  `/swagger.json`, `/api-docs` e `/docs` retornam todos `404`. Os bundles JS
-  da SPA (até ~2,5 MB cada) também não contêm as strings `openapi`/`swagger`.
-  Os endpoints abaixo foram validados por chamada real, não por spec.
+- Base local validada: `https://<host>:11443/proxy/network/integration/v1`.
+- `/unifi-api/network` é a interface autenticada de documentação e pode retornar HTML.
+- Não foi encontrada uma especificação OpenAPI servida diretamente pela controladora nos caminhos locais testados.
+- A Ubiquiti publica OpenAPI, coleção Postman e exemplos no Developer Portal oficial, separados por versão do UniFi Network.
 
-## Endpoints confirmados
+## Endpoints confirmados no ambiente 10.4.57
 
 | Endpoint | Status | Observações |
-|---|---|---|
-| `GET /sites` | 200 | `{offset,limit,count,totalCount,data[]}`; `data[]` = `{id,name,internalReference}` |
-| `GET /sites/{siteId}/devices` | 200 | Mesmo envelope de paginação; `data[]` traz `id,macAddress,ipAddress,name,model,state,supported,firmwareVersion,firmwareUpdatable,features[],interfaces[]` |
-| `GET /sites/{siteId}/devices/{deviceId}` | 200 | Detalhe completo; switches trazem `interfaces.ports[]` (`idx,state,connector,speedMbps,maxSpeedMbps`), APs trazem `interfaces.radios[]` (`wlanStandard,frequencyGHz,channelWidthMHz,channel`) |
-| `GET /sites/{siteId}/devices/{deviceId}/statistics/latest` | 200 | `uptimeSec,lastHeartbeatAt,nextHeartbeatAt,loadAverage{1,5,15}Min,cpuUtilizationPct,memoryUtilizationPct,uplink.{txRateBps,rxRateBps}`; para APs também `interfaces.radios[].txRetriesPct` |
-| `GET /sites/{siteId}/clients` | 200 | Mesmo envelope de paginação; `data[]` = `{type(WIRED/WIRELESS),id,name,connectedAt,ipAddress,macAddress,uplinkDeviceId,access.type}` |
-| `GET /sites/{siteId}/devices/{deviceId}/ports` | 404 | Não existe; o estado das portas vem embutido no objeto de dispositivo acima |
-| `GET /sites/{siteId}/devices/{deviceId}/radios` | 404 | Idem, embutido no objeto de dispositivo |
+|---|---:|---|
+| `GET /sites` | 200 | `{offset,limit,count,totalCount,data[]}` |
+| `GET /sites/{siteId}/devices` | 200 | Inventário resumido de dispositivos |
+| `GET /sites/{siteId}/devices/{deviceId}` | 200 | Portas e rádios embutidos em `interfaces` |
+| `GET /sites/{siteId}/devices/{deviceId}/statistics/latest` | 200 | Uptime, heartbeat, CPU, memória, carga e taxas de uplink |
+| `GET /sites/{siteId}/clients` | 200 | Clientes cabeados, wireless e tipos de acesso disponíveis |
+| `GET /sites/{siteId}/devices/{deviceId}/ports` | 404 | Portas vêm no detalhe do dispositivo |
+| `GET /sites/{siteId}/devices/{deviceId}/radios` | 404 | Rádios vêm no detalhe do dispositivo |
 
-Erros confirmados:
+Erros observados:
 
-- Chave inválida: `401` `{"error":{"code":401,"message":"Unauthorized"}}`
-- Site/recurso inexistente: `404` `{"statusCode":404,"statusName":"NOT_FOUND","code":"api.resource-not-found",...}`
+- chave inválida: `401`;
+- recurso inexistente: `404`.
 
-Paginação: `offset`/`limit`/`count`/`totalCount`/`data[]` - `limit=200` não
-garante que a resposta traga tudo; o cliente deve avançar `offset` pelo
-`count` retornado até `len(acumulado) >= totalCount`.
+## Paginação
 
-## O que a API confirmadamente NÃO expõe
+O envelope usa `offset`, `limit`, `count`, `totalCount` e `data[]`. Para descoberta completa, avance `offset` pelo `count` retornado até cobrir `totalCount`. Um `limit` alto não deve ser tratado como garantia de página única.
 
-Testado e confirmado ausente, não apenas "não implementado":
+## PoE
 
-- Contadores de porta (RX/TX bytes/pacotes, erros, descartes), PoE
-  (habilitado/consumo/potência), duplex, STP, e nenhuma flag indicando qual
-  porta é o uplink.
-- Temperatura de dispositivo.
-- Potência de rádio, utilização de canal, interferência, "satisfaction"/
-  experiência - só `txRetriesPct` está disponível por rádio.
-- SSID, VLAN, banda, flag de convidado/VPN por cliente - o objeto de
-  cliente só tem os campos listados na tabela acima.
-- Qualquer campo de gateway/WAN/VPN - nenhum gateway UniFi (USG/UDM) estava
-  adotado no ambiente usado para validar isto; nada foi implementado sem um
-  dispositivo real para confirmar contra.
+A documentação oficial versionada descreve `interfaces.ports[].poe` com campos de estado/capacidade, incluindo:
 
-## Pegadinhas de template Zabbix descobertas nesta investigação
+- `enabled`;
+- `standard`;
+- `state`;
+- `type`.
 
-- O tipo de macro secreta no YAML/XML de exportação do Zabbix é
-  **`SECRET_TEXT`**, não `SECRET` (confirmado na documentação oficial do
-  Zabbix 7).
-- Os campos de item HTTP Agent `verify_peer`/`verify_host` ("SSL verify
-  peer"/"SSL verify host") são checkboxes fixos (`YES`/`NO`) e **não**
-  aceitam macro de usuário - só campos documentados como aceitando "user
-  macros" na documentação do Zabbix suportam isso. Um template que tenta
-  `verify_peer: '{$ALGUMA.MACRO}'` não terá o comportamento dinâmico
-  esperado; o correto é fixar o valor e, se for necessário alternar entre
-  verificar e não verificar TLS, manter duas variantes do item/template ou
-  documentar a edição manual pós-importação.
+Esses campos podem ser opcionais e não aparecer em modelos ou portas sem suporte PoE. No schema analisado não foram encontrados:
+
+- consumo instantâneo em watts;
+- tensão ou corrente;
+- orçamento total/disponível do switch;
+- energia acumulada.
+
+Portanto, o projeto pode descobrir e monitorar estado/capacidade PoE, mas não deve prometer telemetria elétrica sem confirmação adicional.
+
+## Outros recursos documentados relevantes
+
+- relação de topologia por `uplink.deviceId`;
+- taxas agregadas em `statistics/latest.uplink`;
+- estados detalhados de dispositivo, além de apenas online/offline;
+- grupos LAG em recursos de switching nas versões que os documentam;
+- ação de porta `POWER_CYCLE`, que deve ficar fora do template somente leitura e usar credencial de escrita separada.
+
+## Limitações observadas
+
+No ambiente e schemas analisados não foram confirmados contadores RX/TX por porta, erros, descartes, duplex, STP, potência de rádio, interferência, utilização de canal ou orçamento PoE. Gateway/WAN/VPN exige validação com hardware correspondente.
+
+## Zabbix
+
+- Macro secreta exportada como `SECRET_TEXT`.
+- `verify_peer` e `verify_host` são valores fixos `YES`/`NO`; não aceitam macro de usuário.
+- O timeout deve usar um intervalo Zabbix explícito, por exemplo `10s`.
