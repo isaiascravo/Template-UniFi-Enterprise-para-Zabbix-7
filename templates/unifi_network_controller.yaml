@@ -8,40 +8,23 @@ zabbix_export:
       template: 'UniFi Network Controller by Official API'
       name: 'UniFi Network Controller by Official API'
       description: |
-        Alpha template for UniFi Network official local API.
-        Initial endpoints: /v1/info and /v1/sites.
+        Alpha template for the official UniFi Network integration/v1 API.
+        Endpoints and field names below were validated with real requests
+        against a live UniFi OS Server (see docs/API-NOTES.md); nothing here
+        is guessed. The base path is /proxy/network/integration/v1 - the
+        /unifi-api/network path is the authenticated documentation SPA, not
+        an API endpoint, and returns HTML rather than JSON.
       groups:
         - name: Templates/Network devices
       items:
-        - uuid: 730997729d3148e2a03b1df7776f12ea
-          name: 'UniFi API: Info raw'
-          type: HTTP_AGENT
-          key: unifi.api.info.raw
-          delay: 1m
-          history: '1h'
-          value_type: TEXT
-          url: '{$UNIFI.API.URL}/v1/info'
-          headers:
-            - name: X-API-Key
-              value: '{$UNIFI.API.KEY}'
-            - name: Accept
-              value: application/json
-          request_method: GET
-          retrieve_mode: BODY
-          timeout: '{$UNIFI.API.TIMEOUT}'
-          verify_peer: '{$UNIFI.API.TLS_VERIFY}'
-          verify_host: '{$UNIFI.API.TLS_VERIFY}'
-          tags:
-            - tag: component
-              value: raw
         - uuid: 4b2d8bd417f94634bac9840f6266d8a2
-          name: 'UniFi API: Sites raw'
+          name: 'UniFi API: sites (raw)'
           type: HTTP_AGENT
           key: unifi.api.sites.raw
           delay: 5m
           history: '1h'
           value_type: TEXT
-          url: '{$UNIFI.API.URL}/v1/sites'
+          url: '{$UNIFI.API.URL}/sites?limit=200'
           headers:
             - name: X-API-Key
               value: '{$UNIFI.API.KEY}'
@@ -49,22 +32,55 @@ zabbix_export:
               value: application/json
           request_method: GET
           retrieve_mode: BODY
+          status_codes: '200'
           timeout: '{$UNIFI.API.TIMEOUT}'
-          verify_peer: '{$UNIFI.API.TLS_VERIFY}'
-          verify_host: '{$UNIFI.API.TLS_VERIFY}'
+          # verify_peer/verify_host are fixed YES/NO checkboxes in Zabbix -
+          # they do NOT accept user macros (confirmed against the Zabbix 7
+          # HTTP agent item documentation). Hardcoded to NO here because the
+          # reference environment used to validate this template has a
+          # self-signed certificate; flip to YES manually if yours is
+          # trusted, or maintain a second template variant.
+          verify_peer: 'NO'
+          verify_host: 'NO'
+          description: >-
+            Master item: fetched once. unifi.api.sites.count below is
+            derived from this same response instead of issuing its own
+            HTTP call.
           tags:
             - tag: component
               value: raw
+        - uuid: 730997729d3148e2a03b1df7776f12ea
+          name: 'UniFi: site count'
+          type: DEPENDENT
+          key: unifi.api.sites.count
+          delay: '0'
+          history: '90d'
+          trends: '365d'
+          value_type: UNSIGNED
+          master_item:
+            key: unifi.api.sites.raw
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.totalCount
+          description: >-
+            Demonstrates the dependent-item pattern this project commits to:
+            one HTTP call per raw payload, every metric derived from it.
+          tags:
+            - tag: component
+              value: metric
       macros:
         - macro: '{$UNIFI.API.KEY}'
           type: SECRET_TEXT
-          description: 'UniFi API key. Configure on the host; never export a real value.'
+          description: 'UniFi API key (read-only). Configure on the host; never export a real value.'
         - macro: '{$UNIFI.API.TIMEOUT}'
-          value: 15s
-        - macro: '{$UNIFI.API.TLS_VERIFY}'
-          value: '1'
+          value: '10'
+          description: 'HTTP timeout in seconds.'
         - macro: '{$UNIFI.API.URL}'
-          value: 'https://unifi.example:11443/unifi-api/network'
+          value: 'https://unifi.example:11443/proxy/network/integration/v1'
+          description: >-
+            Base URL of the integration/v1 API. Do NOT point this at
+            /unifi-api/network - that is the documentation SPA, not the API.
       tags:
         - tag: class
           value: network
