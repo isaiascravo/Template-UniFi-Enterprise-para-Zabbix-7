@@ -4,6 +4,20 @@ Template comunitário para monitoramento de ambientes UniFi Network pelo Zabbix 
 
 > Status: **alpha**. A cobertura atual foi validada contra uma controladora UniFi Network 10.4.57 e comparada com a documentação oficial versionada. Campos podem variar entre versões; consulte `docs/API-NOTES.md` e `docs/VERSION_MATRIX.md`.
 
+## Download
+
+| Template | Cobertura | Link |
+|---|---|---|
+| **`unifi_network_and_devices.yaml`** (recomendado) | Site → dispositivos → portas → rádios, com descoberta automática, value maps e triggers. Validado num Zabbix 7.0.28 real. | [baixar](templates/unifi_network_and_devices.yaml) |
+| `unifi_network_controller.yaml` | Alpha mínimo (`/info` + `/sites`), útil só para testar a conexão. | [baixar](templates/unifi_network_controller.yaml) |
+
+Para baixar: clique no link, depois no botão **"Download raw file"** (ícone
+de seta para baixo) no canto superior direito da página do arquivo. Ou
+baixe o repositório inteiro em **Code → Download ZIP**, no topo desta
+página.
+
+Guia completo de instalação e configuração: [Wiki](../../wiki).
+
 ## Objetivos
 
 - API oficial, sem sessão, cookies ou scraping;
