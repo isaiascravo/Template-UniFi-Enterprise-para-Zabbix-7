@@ -57,7 +57,7 @@ def main() -> int:
     parser.add_argument(
         "--url",
         required=True,
-        help="API base URL, ending in /proxy/network/integration/v1",
+        help="API base URL ending in /proxy/network/integration/v1",
     )
     parser.add_argument("--api-key", required=True)
     parser.add_argument("--timeout", type=float, default=15.0)
