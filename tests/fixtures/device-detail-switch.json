@@ -1,0 +1,37 @@
+{
+  "id": "00000000-0000-4000-8000-000000000010",
+  "name": "Example Switch",
+  "model": "USW-EXAMPLE",
+  "state": "ONLINE",
+  "macAddress": "00:11:22:33:44:55",
+  "ipAddress": "192.0.2.10",
+  "firmwareVersion": "7.4.1",
+  "firmwareUpdatable": false,
+  "uplink": {
+    "deviceId": "00000000-0000-4000-8000-000000000099"
+  },
+  "interfaces": {
+    "ports": [
+      {
+        "idx": 1,
+        "state": "UP",
+        "connector": "RJ45",
+        "speedMbps": 1000,
+        "maxSpeedMbps": 1000,
+        "poe": {
+          "enabled": true,
+          "standard": "802.3at",
+          "state": "UP",
+          "type": 2
+        }
+      },
+      {
+        "idx": 2,
+        "state": "DOWN",
+        "connector": "RJ45",
+        "speedMbps": 0,
+        "maxSpeedMbps": 1000
+      }
+    ]
+  }
+}
