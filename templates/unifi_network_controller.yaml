@@ -9,11 +9,8 @@ zabbix_export:
       name: 'UniFi Network Controller by Official API'
       description: |
         Alpha template for the official UniFi Network integration/v1 API.
-        Endpoints and field names below were validated with real requests
-        against a live UniFi OS Server (see docs/API-NOTES.md); nothing here
-        is guessed. The base path is /proxy/network/integration/v1 - the
-        /unifi-api/network path is the authenticated documentation SPA, not
-        an API endpoint, and returns HTML rather than JSON.
+        Coverage is validated against UniFi Network 10.4.57 and compared
+        with the versioned official documentation. See docs/API-NOTES.md.
       groups:
         - name: Templates/Network devices
       items:
@@ -24,7 +21,7 @@ zabbix_export:
           delay: 5m
           history: '1h'
           value_type: TEXT
-          url: '{$UNIFI.API.URL}/sites?limit=200'
+          url: '{$UNIFI.API.URL}/sites?offset=0&limit=200'
           headers:
             - name: X-API-Key
               value: '{$UNIFI.API.KEY}'
@@ -34,18 +31,12 @@ zabbix_export:
           retrieve_mode: BODY
           status_codes: '200'
           timeout: '{$UNIFI.API.TIMEOUT}'
-          # verify_peer/verify_host are fixed YES/NO checkboxes in Zabbix -
-          # they do NOT accept user macros (confirmed against the Zabbix 7
-          # HTTP agent item documentation). Hardcoded to NO here because the
-          # reference environment used to validate this template has a
-          # self-signed certificate; flip to YES manually if yours is
-          # trusted, or maintain a second template variant.
           verify_peer: 'NO'
           verify_host: 'NO'
           description: >-
-            Master item: fetched once. unifi.api.sites.count below is
-            derived from this same response instead of issuing its own
-            HTTP call.
+            Master item. TLS verification is disabled for the self-signed
+            reference environment; enable both checks when the controller
+            certificate is trusted by the Zabbix server/proxy.
           tags:
             - tag: component
               value: raw
@@ -63,24 +54,20 @@ zabbix_export:
             - type: JSONPATH
               parameters:
                 - $.totalCount
-          description: >-
-            Demonstrates the dependent-item pattern this project commits to:
-            one HTTP call per raw payload, every metric derived from it.
+          description: 'Total site count derived from the master payload.'
           tags:
             - tag: component
               value: metric
       macros:
         - macro: '{$UNIFI.API.KEY}'
           type: SECRET_TEXT
-          description: 'UniFi API key (read-only). Configure on the host; never export a real value.'
+          description: 'Read-only UniFi API key. Configure on the host.'
         - macro: '{$UNIFI.API.TIMEOUT}'
-          value: '10'
-          description: 'HTTP timeout in seconds.'
+          value: '10s'
+          description: 'Zabbix time interval used as HTTP timeout.'
         - macro: '{$UNIFI.API.URL}'
           value: 'https://unifi.example:11443/proxy/network/integration/v1'
-          description: >-
-            Base URL of the integration/v1 API. Do NOT point this at
-            /unifi-api/network - that is the documentation SPA, not the API.
+          description: 'Base URL of the official local integration/v1 API.'
       tags:
         - tag: class
           value: network
