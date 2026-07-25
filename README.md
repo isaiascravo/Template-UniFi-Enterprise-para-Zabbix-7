@@ -1,1 +1,1 @@
-# Template-UniFi-Enterprise-para-Zabbix-7
+﻿# Template UniFi Enterprise para Zabbix 7
