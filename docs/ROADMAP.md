@@ -4,7 +4,7 @@
 
 ## v0.1 — Controller
 
-- Coleta de `/sites` com item mestre e item dependente.
+- Coleta de `/info` e `/sites`, cada um com item mestre e item dependente.
 - Macro `{$UNIFI.API.KEY}` como `Secret text`.
 - Timeout explícito e TLS documentado.
 - Smoke test da API local.
@@ -45,6 +45,23 @@
 - Módulo separado para `POWER_CYCLE` de porta.
 - Credencial de escrita separada da chave somente leitura.
 - Nenhuma ação destrutiva ou de remediação automática no template principal.
+
+## v0.7 — Superfície estendida (pesquisa)
+
+A spec oficial `network/v10.4.57` documenta bastante além do que este
+projeto usa hoje; nada nesta lista foi testado (exceto `wans`,
+`switching/lags` e `networks`, confirmados vazios/funcionais no ambiente de
+referência - ver `docs/API-NOTES.md`). Cada item exige validação com
+resposta real antes de virar item/trigger:
+
+- Firewall e ACLs (`firewall/policies`, `firewall/zones`, `acl-rules`).
+- DNS (`dns/policies`).
+- VPN (`vpn/servers`, `vpn/site-to-site-tunnels`).
+- Hotspot (`hotspot/vouchers`) e RADIUS (`radius/profiles`).
+- SSIDs (`wifi/broadcasts`).
+- DPI (`dpi/applications`, `dpi/categories`).
+- MC-LAG e stacking de switches (`switching/mc-lag-domains`, `switching/switch-stacks`).
+- Dispositivos pendentes de adoção e tags (`pending-devices`, `device-tags`).
 
 ## v1.0
 

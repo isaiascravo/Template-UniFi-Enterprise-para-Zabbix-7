@@ -28,13 +28,16 @@ Não use `/unifi-api/network` como base: esse caminho é a interface de document
 
 ## Endpoints validados
 
+- `GET /info` - confirmado ao vivo, retorna `{"applicationVersion": "10.4.57"}`
 - `GET /sites`
 - `GET /sites/{siteId}/devices`
 - `GET /sites/{siteId}/devices/{deviceId}`
 - `GET /sites/{siteId}/devices/{deviceId}/statistics/latest`
 - `GET /sites/{siteId}/clients`
 
-Apenas `/sites` está implementado no template nesta fase. Os demais entram conforme o roadmap e os testes por fixture.
+`/info` e `/sites` estão implementados no template nesta fase (cada um com
+item mestre + item dependente). Os demais entram conforme o roadmap e os
+testes por fixture.
 
 ## PoE
 

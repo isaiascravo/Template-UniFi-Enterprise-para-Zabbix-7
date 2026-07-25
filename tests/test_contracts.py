@@ -40,6 +40,25 @@ class ContractTests(unittest.TestCase):
         self.assertEqual("DEPENDENT", dependent["type"])
         self.assertEqual("$.totalCount", dependent["preprocessing"][0]["parameters"][0])
 
+    def test_zabbix_template_has_info_item_and_dependent(self) -> None:
+        template_path = ROOT / "templates" / "unifi_network_controller.yaml"
+        document = yaml.safe_load(template_path.read_text(encoding="utf-8"))
+        template = document["zabbix_export"]["templates"][0]
+        items = {item["key"]: item for item in template["items"]}
+        self.assertIn("unifi.api.info.raw", items)
+        self.assertTrue(items["unifi.api.info.raw"]["url"].endswith("/info"))
+        dependent = items["unifi.api.info.application_version"]
+        self.assertEqual("DEPENDENT", dependent["type"])
+        self.assertEqual("unifi.api.info.raw", dependent["master_item"]["key"])
+        self.assertEqual("$.applicationVersion", dependent["preprocessing"][0]["parameters"][0])
+
+    def test_template_uuids_are_unique(self) -> None:
+        template_path = ROOT / "templates" / "unifi_network_controller.yaml"
+        document = yaml.safe_load(template_path.read_text(encoding="utf-8"))
+        template = document["zabbix_export"]["templates"][0]
+        uuids = [item["uuid"] for item in template["items"]]
+        self.assertEqual(len(uuids), len(set(uuids)))
+
     def test_no_real_secret_is_versioned_in_template(self) -> None:
         text = (ROOT / "templates" / "unifi_network_controller.yaml").read_text(
             encoding="utf-8"

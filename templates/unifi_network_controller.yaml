@@ -9,11 +9,57 @@ zabbix_export:
       name: 'UniFi Network Controller by Official API'
       description: |
         Alpha template for the official UniFi Network integration/v1 API.
-        Coverage is validated against UniFi Network 10.4.57 and compared
-        with the versioned official documentation. See docs/API-NOTES.md.
+        Coverage is validated against UniFi Network 10.4.57 (including
+        GET {$UNIFI.API.URL}/info, which reports that exact version) and
+        compared with the versioned official documentation. See
+        docs/API-NOTES.md.
       groups:
         - name: Templates/Network devices
       items:
+        - uuid: a4c295c9402942fcaa6a4893ca428681
+          name: 'UniFi API: info (raw)'
+          type: HTTP_AGENT
+          key: unifi.api.info.raw
+          delay: 1h
+          history: '1h'
+          value_type: TEXT
+          url: '{$UNIFI.API.URL}/info'
+          headers:
+            - name: X-API-Key
+              value: '{$UNIFI.API.KEY}'
+            - name: Accept
+              value: application/json
+          request_method: GET
+          retrieve_mode: BODY
+          status_codes: '200'
+          timeout: '{$UNIFI.API.TIMEOUT}'
+          verify_peer: 'NO'
+          verify_host: 'NO'
+          description: >-
+            Master item. GET {$UNIFI.API.URL}/info returns
+            {"applicationVersion": "..."}; confirmed against a live
+            controller (see docs/API-NOTES.md). Polled hourly since the
+            application version rarely changes.
+          tags:
+            - tag: component
+              value: raw
+        - uuid: e2cdfcd27ac34be483e3890b361fc369
+          name: 'UniFi: application version'
+          type: DEPENDENT
+          key: unifi.api.info.application_version
+          delay: '0'
+          history: '90d'
+          value_type: TEXT
+          master_item:
+            key: unifi.api.info.raw
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.applicationVersion
+          description: 'UniFi Network application version, derived from the master payload.'
+          tags:
+            - tag: component
+              value: metric
         - uuid: 4b2d8bd417f94634bac9840f6266d8a2
           name: 'UniFi API: sites (raw)'
           type: HTTP_AGENT

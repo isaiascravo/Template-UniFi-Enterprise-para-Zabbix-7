@@ -1,5 +1,9 @@
 # Schema monitorado
 
+## Info
+
+- `applicationVersion`
+
 ## Página paginada
 
 Campos obrigatórios usados pelo projeto:
