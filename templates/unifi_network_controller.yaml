@@ -1,0 +1,72 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 9ac52ae5c61a4a2a8cced9d812ac7a10
+      name: Templates/Network devices
+  templates:
+    - uuid: 34cdf6c728184a7ea19344f18df8c9c1
+      template: 'UniFi Network Controller by Official API'
+      name: 'UniFi Network Controller by Official API'
+      description: |
+        Alpha template for UniFi Network official local API.
+        Initial endpoints: /v1/info and /v1/sites.
+      groups:
+        - name: Templates/Network devices
+      items:
+        - uuid: 730997729d3148e2a03b1df7776f12ea
+          name: 'UniFi API: Info raw'
+          type: HTTP_AGENT
+          key: unifi.api.info.raw
+          delay: 1m
+          history: '1h'
+          value_type: TEXT
+          url: '{$UNIFI.API.URL}/v1/info'
+          headers:
+            - name: X-API-Key
+              value: '{$UNIFI.API.KEY}'
+            - name: Accept
+              value: application/json
+          request_method: GET
+          retrieve_mode: BODY
+          timeout: '{$UNIFI.API.TIMEOUT}'
+          verify_peer: '{$UNIFI.API.TLS_VERIFY}'
+          verify_host: '{$UNIFI.API.TLS_VERIFY}'
+          tags:
+            - tag: component
+              value: raw
+        - uuid: 4b2d8bd417f94634bac9840f6266d8a2
+          name: 'UniFi API: Sites raw'
+          type: HTTP_AGENT
+          key: unifi.api.sites.raw
+          delay: 5m
+          history: '1h'
+          value_type: TEXT
+          url: '{$UNIFI.API.URL}/v1/sites'
+          headers:
+            - name: X-API-Key
+              value: '{$UNIFI.API.KEY}'
+            - name: Accept
+              value: application/json
+          request_method: GET
+          retrieve_mode: BODY
+          timeout: '{$UNIFI.API.TIMEOUT}'
+          verify_peer: '{$UNIFI.API.TLS_VERIFY}'
+          verify_host: '{$UNIFI.API.TLS_VERIFY}'
+          tags:
+            - tag: component
+              value: raw
+      macros:
+        - macro: '{$UNIFI.API.KEY}'
+          type: SECRET_TEXT
+          description: 'UniFi API key. Configure on the host; never export a real value.'
+        - macro: '{$UNIFI.API.TIMEOUT}'
+          value: 15s
+        - macro: '{$UNIFI.API.TLS_VERIFY}'
+          value: '1'
+        - macro: '{$UNIFI.API.URL}'
+          value: 'https://unifi.example:11443/unifi-api/network'
+      tags:
+        - tag: class
+          value: network
+        - tag: target
+          value: unifi
